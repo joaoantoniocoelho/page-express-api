@@ -1,7 +1,8 @@
 const express = require('express');
+const logger = require('../utils/logger');
 const { protect } = require('../middleware/authMiddleware');
 const { generateToken } = require('../config/jwt');
-const { sendResetPasswordEmail } = require('../utils/emailService');
+const { sendResetPasswordEmail } = require('../utils/emailUtils');
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -13,22 +14,23 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
     const { name, email, password } = req.body;
 
-    const userExists = await User.findOne({ email });
- 
-    if (userExists) {
-        return res.status(400).json({ message: 'User already exists' });
-    }
+    try {
+        const userExists = await User.findOne({ email });
 
-    const user = await User.create({ name, email, password });
+        if (userExists) {
+            logger.warn(`Registration attempt with existing email: ${email}`);
+            return res.status(400).json({ message: 'User already exists' });
+        }
 
-    if (user) {
-        res.status(201).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-        });
-    } else {
-        res.status(400).json({ message: 'Invalid user data' });
+        const user = await User.create({ name, email, password });
+
+        logger.info(`User registered successfully: ${user._id}`);
+        
+        res.status(201).json({ _id: user._id, name: user.name, email: user.email });
+    } catch (error) {
+        logger.error(`Error during registration for email ${email}: ${error.message}`);
+        
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
@@ -36,25 +38,44 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    try {
+        const user = await User.findOne({ email });
 
-    if (user && (await user.matchPassword(password))) {
-        res.json({
-            token: generateToken(user._id),
-        });
-    } else {
-        res.status(401).json({ message: 'Invalid email or password' });
+        if (user && (await user.matchPassword(password))) {
+            logger.info(`User logged in: ${user._id}`);
+            res.json({
+                token: generateToken(user._id),
+            });
+        } else {
+            logger.warn(`Invalid login attempt for email: ${email}`);
+            
+            res.status(401).json({ message: 'Invalid email or password' });
+        }
+    } catch (error) {
+        logger.error(`Error during login for email ${email}: ${error.message}`);
+        
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
 // Get user profile
 router.get('/profile', protect, async (req, res) => {
-    const user = await User.findById(req.user._id).select('-password');
+    try {
+        const user = await User.findById(req.user._id).select('-password');
 
-    if (user) {
-        res.json(user);
-    } else {
-        res.status(404).json({ message: 'User not found' });
+        if (user) {
+            logger.info(`User profile retrieved: ${req.user._id}`);
+            
+            res.json(user);
+        } else {
+            logger.warn(`User profile not found: ${req.user._id}`);
+            
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        logger.error(`Error retrieving user profile: ${error.message}`);
+        
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
@@ -66,6 +87,7 @@ router.post('/reset-password-email', async (req, res) => {
         const user = await User.findOne({ email });
 
         if (!user) {
+            logger.warn(`Password reset attempt for non-existent email: ${email}`);
             return res.status(404).json({ message: 'User not found' });
         }
 
@@ -74,9 +96,12 @@ router.post('/reset-password-email', async (req, res) => {
         const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
         await sendResetPasswordEmail(email, resetLink);
 
+        logger.info(`Password reset email sent to: ${email}`);
+        
         res.status(200).json({ message: 'Email sent' });
     } catch (error) {
-        console.error(error);
+        logger.error(`Error sending password reset email to ${email}: ${error.message}`);
+        
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -90,15 +115,25 @@ router.post('/reset-password', async (req, res) => {
         const user = await User.findById(decoded._id);
 
         if (!user) {
+            logger.warn(`Password reset attempt with invalid user ID: ${decoded._id}`);
             return res.status(404).json({ message: 'User not found' });
         }
 
         user.password = newPassword;
         await user.save();
 
+        logger.info(`Password successfully reset for user: ${user._id}`);
+        
         res.status(200).json({ message: 'Password updated' });
     } catch (error) {
-        res.status(400).json({ message: 'Invalid Token' });
+        if (error.name === 'TokenExpiredError') {
+            logger.warn(`Expired password reset token used`);
+            res.status(401).json({ message: 'Token expired' });
+        } else {
+            logger.error(`Error resetting password: ${error.message}`);
+            
+            res.status(400).json({ message: 'Invalid Token' });
+        }
     }
 });
 
@@ -108,14 +143,21 @@ router.get('/verify-reset-token', async (req, res) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        logger.info(`Valid reset token for user: ${decoded._id}`);
+        
         res.status(200).json({ valid: true, message: 'Valid Token.', userId: decoded._id });
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
+            logger.warn(`Expired reset token verification attempt`);
+            
             res.status(401).json({ valid: false, message: 'Token expired.' });
         } else {
+            logger.error(`Invalid reset token verification attempt: ${error.message}`);
+            
             res.status(400).json({ valid: false, message: 'Invalid Token.' });
         }
     }
 });
 
 module.exports = router;
+

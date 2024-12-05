@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('./utils/logger');
 require('dotenv').config();
 const connectDB = require('./config/db');
 
@@ -15,4 +16,6 @@ app.use('/api/templates', require('./routes/templateRoutes'));
 app.use('/api/pages', require('./routes/pageRoutes'));
 app.use('/', require('./routes/siteRoutes'));
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+});

@@ -1,14 +1,17 @@
 const express = require('express');
 const { generateSitemap, getCachedSitemap, CACHE_DURATION } = require('../utils/sitemapUtils');
+const logger = require('../utils/logger'); // Importação do logger
 
 const router = express.Router();
 
-// Servir o sitemap
 router.get('/sitemap.xml', async (req, res) => {
     const { cachedSitemap, lastGenerated } = getCachedSitemap();
 
     if (!cachedSitemap || Date.now() - lastGenerated > CACHE_DURATION) {
+        logger.info('Sitemap cache expired or empty. Regenerating sitemap.');
         await generateSitemap();
+    } else {
+        logger.info('Serving sitemap from cache.');
     }
 
     res.header('Content-Type', 'application/xml');
@@ -16,6 +19,7 @@ router.get('/sitemap.xml', async (req, res) => {
 });
 
 router.get('/robots.txt', (req, res) => {
+    logger.info('Serving robots.txt');
     const robotsContent = `
         User-agent: *
         Disallow: /login
