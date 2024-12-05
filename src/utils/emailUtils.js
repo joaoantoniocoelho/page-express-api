@@ -47,6 +47,13 @@ async function sendResetPasswordEmail(to, resetLink) {
             console.error('Error sending email:', error);
             throw new Error('Error sending email');            
         }
-    };
+};
 
-module.exports = { sendResetPasswordEmail };
+function anonymizeEmail(email) {
+    const [localPart, domain] = email.split('@');
+    const anonymizedLocal = localPart.slice(0, 2) + '***';
+    return `${anonymizedLocal}@${domain}`;
+}
+
+
+module.exports = { sendResetPasswordEmail, anonymizeEmail };

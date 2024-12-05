@@ -2,10 +2,9 @@ const express = require('express');
 const logger = require('../utils/logger');
 const { protect } = require('../middleware/authMiddleware');
 const { generateToken } = require('../config/jwt');
-const { sendResetPasswordEmail } = require('../utils/emailUtils');
+const { sendResetPasswordEmail, anonymizeEmail } = require('../utils/emailUtils');
 
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const User = require('../models/User');
 
 const router = express.Router();
@@ -18,7 +17,7 @@ router.post('/register', async (req, res) => {
         const userExists = await User.findOne({ email });
 
         if (userExists) {
-            logger.warn(`Registration attempt with existing email: ${email}`);
+            logger.warn(`Registration attempt with existing email: ${anonymizeEmail(email)}`);
             return res.status(400).json({ message: 'User already exists' });
         }
 
@@ -28,7 +27,7 @@ router.post('/register', async (req, res) => {
         
         res.status(201).json({ _id: user._id, name: user.name, email: user.email });
     } catch (error) {
-        logger.error(`Error during registration for email ${email}: ${error.message}`);
+        logger.error(`Error during registration for email ${anonymizeEmail(email)}: ${error.message}`);
         
         res.status(500).json({ message: 'Server error' });
     }
@@ -47,12 +46,12 @@ router.post('/login', async (req, res) => {
                 token: generateToken(user._id),
             });
         } else {
-            logger.warn(`Invalid login attempt for email: ${email}`);
+            logger.warn(`Invalid login attempt for email: ${anonymizeEmail(email)}`);
             
             res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        logger.error(`Error during login for email ${email}: ${error.message}`);
+        logger.error(`Error during login for email ${anonymizeEmail(email)}: ${error.message}`);
         
         res.status(500).json({ message: 'Server error' });
     }
@@ -87,7 +86,7 @@ router.post('/reset-password-email', async (req, res) => {
         const user = await User.findOne({ email });
 
         if (!user) {
-            logger.warn(`Password reset attempt for non-existent email: ${email}`);
+            logger.warn(`Password reset attempt for non-existent email: ${anonymizeEmail(email)}`);
             return res.status(404).json({ message: 'User not found' });
         }
 
@@ -96,11 +95,11 @@ router.post('/reset-password-email', async (req, res) => {
         const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
         await sendResetPasswordEmail(email, resetLink);
 
-        logger.info(`Password reset email sent to: ${email}`);
+        logger.info(`Password reset email sent to: ${anonymizeEmail(email)}`);
         
         res.status(200).json({ message: 'Email sent' });
     } catch (error) {
-        logger.error(`Error sending password reset email to ${email}: ${error.message}`);
+        logger.error(`Error sending password reset email to ${anonymizeEmail(email)}: ${error.message}`);
         
         res.status(500).json({ message: 'Server error' });
     }
