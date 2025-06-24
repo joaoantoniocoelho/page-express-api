@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/requireAuth';
-import { getMe, registerUserOnSupabase } from '../controllers/UserController';
+import { requireAuth, verifyClerkWebhook } from '../middleware/requireAuth';
+import { getMe, clerkWebhook } from '../controllers/UserController';
+import express from 'express';
 
 const router = Router();
 
@@ -13,6 +14,9 @@ router.get('/health', (req, res) => {
 
 // User routes
 router.get('/me', requireAuth, getMe);
-router.post('/register', requireAuth, registerUserOnSupabase);
+
+// Webhook routes
+router.post('/webhooks/clerk', express.raw({ type: 'application/json' }), verifyClerkWebhook, clerkWebhook);
+
 
 export default router; 

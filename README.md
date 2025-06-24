@@ -2,17 +2,46 @@
 
 This is the backend of the Page Express project, responsible for the API and Supabase integration.
 
+## 🚀 Features
+
+- **Authentication**: Clerk integration for user management
+- **Database**: Supabase integration for data persistence
+- **Webhooks**: Automatic user registration via Clerk webhooks
+- **API**: RESTful endpoints for user data
+
 🧪 How to run locally
 
 ## Install dependencies
-```
+```bash
 npm install
 ```
 
-## Run the project in dev mode
+## Environment Variables
+Create a `.env` file with:
+```env
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_WEBHOOK_SECRET=your_webhook_secret
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+PORT=8080
 ```
+
+## Run the project in dev mode
+```bash
 npm run dev
 ```
+
+## 🔗 API Endpoints
+
+- `GET /api/health` - Health check
+- `GET /api/me` - Get current user data (requires auth)
+- `POST /api/webhooks/clerk` - Clerk webhook for user creation
+
+## 🪝 Webhook Setup
+
+The application uses Clerk webhooks to automatically create users in Supabase when they register. See [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md) for detailed configuration instructions.
+
 ## 🗃️ Using Supabase
 
 ### 1. Login to Supabase CLI
