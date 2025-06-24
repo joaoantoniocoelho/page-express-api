@@ -61,74 +61,70 @@ export const clerkWebhook = async (req: Request, res: Response) => {
         }
 
         const { data: userData } = event;
+        const clerkId = userData.id;
 
-        console.log(`User created: ${userData.id} ${userData.email_addresses[0]?.email_address}`);
-        res.status(200).json({ message: 'User created successfully' });
-        return;
-        // const clerkId = userData.id;
+        const { data: existingUser, error: queryError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('clerk_id', clerkId)
+            .is('deleted_at', null)
+            .single();
 
-        // const { data: existingUser, error: queryError } = await supabase
-        //     .from('users')
-        //     .select('id')
-        //     .eq('clerk_id', clerkId)
-        //     .is('deleted_at', null)
-        //     .single();
+        if (queryError && queryError.code !== 'PGRST116') {
+            console.error('Database query error in webhook:', queryError.code);
+            res.status(500).json({ error: 'Database query failed' });
+            return;
+        }
 
-        // if (queryError && queryError.code !== 'PGRST116') {
-        //     console.error('Database query error in webhook:', queryError.code);
-        //     res.status(500).json({ error: 'Database query failed' });
-        //     return;
-        // }
+        if (existingUser) {
+            console.log(`User with clerk_id ${clerkId} already exists`);
+            res.status(200).json({ message: 'User already exists' });
+            return;
+        }
 
-        // if (existingUser) {
-        //     console.log(`User with clerk_id ${clerkId} already exists`);
-        //     res.status(200).json({ message: 'User already exists' });
-        //     return;
-        // }
+        const userEmail = userData.email_addresses[0]?.email_address;
+        if (!userEmail) {
+            console.error('No email found in webhook data');
+            res.status(400).json({ error: 'Email is required' });
+            return;
+        }
 
-        // const userEmail = userData.email_addresses[0]?.email_address;
-        // if (!userEmail) {
-        //     console.error('No email found in webhook data');
-        //     res.status(400).json({ error: 'Email is required' });
-        //     return;
-        // }
+        const firstName = userData.first_name?.trim() || '';
+        const lastName = userData.last_name?.trim() || '';
+        const fullName = `${firstName} ${lastName}`.trim() || null;
 
-        // const firstName = userData.first_name?.trim() || '';
-        // const lastName = userData.last_name?.trim() || '';
-        // const fullName = `${firstName} ${lastName}`.trim() || null;
+        let imageUrl = null;
+        if (userData.image_url) {
+            try {
+                new URL(userData.image_url);
+                imageUrl = userData.image_url;
+            } catch {
+                console.warn('Invalid image URL in webhook, ignoring');
+            }
+        }
 
-        // let imageUrl = null;
-        // if (userData.image_url) {
-        //     try {
-        //         new URL(userData.image_url);
-        //         imageUrl = userData.image_url;
-        //     } catch {
-        //         console.warn('Invalid image URL in webhook, ignoring');
-        //     }
-        // }
+        const { data: newUser, error: insertError } = await supabase
+            .from('users')
+            .insert({
+                clerk_id: clerkId,
+                email: userEmail,
+                name: fullName,
+                image_url: imageUrl,
+            })
+            .select('id, email, name, image_url, created_at')
+            .single();
 
-        // const { data: newUser, error: insertError } = await supabase
-        //     .from('users')
-        //     .insert({
-        //         clerk_id: clerkId,
-        //         email: userEmail,
-        //         name: fullName,
-        //         image_url: imageUrl,
-        //     })
-        //     .select('id, email, name, image_url, created_at')
-        //     .single();
+        if (insertError) {
+            console.error('Database insert error in webhook:', insertError.code);
+            res.status(500).json({ error: 'Failed to create user' });
+            return;
+        }
 
-        // if (insertError) {
-        //     console.error('Database insert error in webhook:', insertError.code);
-        //     res.status(500).json({ error: 'Failed to create user' });
-        //     return;
-        // }
-
-        // console.log(`User created successfully via webhook: ${newUser.id}`);
-        // res.status(200).json({ 
-        //     message: 'User created successfully',
-        //     user: newUser 
-        // });
+        console.log(`User created successfully via webhook: ${newUser.id}`);
+        res.status(200).json({ 
+            message: 'User created successfully',
+            user: newUser 
+        });
 
     } catch (error) {
         console.error('Unexpected error in clerk webhook:', (error as Error).message);
