@@ -1,48 +1,36 @@
 # 📦 Backend - Page Express
 
-Este é o backend do projeto Page Express, responsável pela API e integração com o Supabase.
+This is the backend of the Page Express project, responsible for the API and Supabase integration.
 
-🧪 Como rodar localmente
+🧪 How to run locally
 
-## Instalar dependências
+## Install dependencies
 ```
 npm install
 ```
 
-## Rodar o projeto em modo dev
+## Run the project in dev mode
 ```
 npm run dev
 ```
-## 🗃️ Usando o Supabase
+## 🗃️ Using Supabase
 
-### 1. Login na CLI do Supabase
+### 1. Login to Supabase CLI
 
 ```npx supabase login```
 
-### 2. Conectar ao projeto
+### 2. Connect to the project
 
 ```npx supabase link --project-ref <PROJECT_REF>```
 
-### 3. Subir migrations
+### 3. Push migrations
 
 ```npx supabase db push```
 
-### 4. Verificar status das migrations
+### 4. Check migration status
 
 ```npx supabase db status```
 
-### 5. Gerar types do Supabase
+### 5. Generate Supabase types
 
 ```npx supabase gen types typescript --local > src/types/supabase.ts```
-
-📁 Estrutura esperada
-
-backend/
-├── src/
-│   ├── routes/
-│   ├── services/
-│   └── types/
-├── .env.example
-├── package.json
-└── tsconfig.json
-
